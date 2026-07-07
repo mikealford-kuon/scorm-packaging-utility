@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SCORM 1.2 MP4/VTT Packager</title>
+    <title>KUON.ai SCORM Packager</title>
     <script src="vendor/js/jszip.min.js"></script>
     <script src="vendor/js/FileSaver.min.js"></script>
     <link rel="stylesheet" href="vendor/css/video-js.css" />
@@ -31,7 +31,37 @@
       .page {
         max-width: 860px;
         margin: 0 auto;
-        padding: 2.5rem 1.25rem 2rem;
+        padding: 5.75rem 1.25rem 2rem;
+      }
+
+      .brand-bar {
+        position: fixed;
+        top: 1rem;
+        left: 1rem;
+        z-index: 20;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.65rem;
+        padding: 0.55rem 0.75rem;
+        border: 1px solid rgba(192, 192, 192, 0.24);
+        border-radius: 10px;
+        background: rgba(8, 9, 19, 0.78);
+        backdrop-filter: blur(12px);
+        box-shadow: 0 14px 36px rgba(0, 0, 0, 0.28);
+      }
+
+      .brand-logo {
+        width: 38px;
+        height: 38px;
+        object-fit: contain;
+      }
+
+      .brand-title {
+        color: #fff;
+        font-size: 0.96rem;
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: 0;
       }
 
       h1 {
@@ -185,9 +215,33 @@
         font-size: 0.85rem;
         color: #a5a9ff;
       }
+
+      @media (max-width: 640px) {
+        .page {
+          padding-top: 5.25rem;
+        }
+
+        .brand-bar {
+          right: 1rem;
+          max-width: calc(100vw - 2rem);
+        }
+
+        .brand-logo {
+          width: 32px;
+          height: 32px;
+        }
+
+        .brand-title {
+          font-size: 0.9rem;
+        }
+      }
     </style>
   </head>
   <body>
+    <header class="brand-bar" aria-label="KUON.ai SCORM Packager">
+      <img class="brand-logo" src="assets/kuon-logo.svg" alt="KUON.ai logo" />
+      <div class="brand-title">KUON.ai SCORM Packager</div>
+    </header>
     <div class="page">
       <h1>SCORM 1.2 MP4/VTT Packager</h1>
       <p>

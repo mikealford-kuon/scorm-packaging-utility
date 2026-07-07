@@ -1,0 +1,57 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="circuit" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M 0 10 L 20 10" stroke="#2a2a2a" stroke-width="0.5"/>
+      <path d="M 10 0 L 10 20" stroke="#2a2a2a" stroke-width="0.5"/>
+      <circle cx="10" cy="10" r="1" fill="#2a2a2a"/>
+    </pattern>
+    <radialGradient id="eyeGlow" cx="50%" cy="50%">
+      <stop offset="0%" stop-color="#ff0000" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#cc0000" stop-opacity="0.8"/>
+    </radialGradient>
+  </defs>
+  
+  <!-- Circular frame -->
+  <circle cx="100" cy="100" r="95" fill="none" stroke="#c0c0c0" stroke-width="3"/>
+  <circle cx="100" cy="100" r="90" fill="rgba(192, 192, 192, 0.1)"/>
+  
+  <!-- Background triangle pattern -->
+  <g opacity="0.3">
+    <path d="M 50 50 L 150 50 L 100 100 Z" fill="none" stroke="#999" stroke-width="0.5"/>
+    <path d="M 50 150 L 150 150 L 100 100 Z" fill="none" stroke="#999" stroke-width="0.5"/>
+    <path d="M 50 50 L 50 150 L 100 100 Z" fill="none" stroke="#999" stroke-width="0.5"/>
+    <path d="M 150 50 L 150 150 L 100 100 Z" fill="none" stroke="#999" stroke-width="0.5"/>
+  </g>
+  
+  <!-- Owl body with circuit pattern -->
+  <g transform="translate(100, 100)">
+    <!-- Body -->
+    <ellipse cx="0" cy="10" rx="35" ry="45" fill="#1a1a1a" fill-opacity="0.9"/>
+    <ellipse cx="0" cy="10" rx="35" ry="45" fill="url(#circuit)" fill-opacity="0.4"/>
+    
+    <!-- Head -->
+    <circle cx="0" cy="-20" r="30" fill="#1a1a1a" fill-opacity="0.9"/>
+    <circle cx="0" cy="-20" r="30" fill="url(#circuit)" fill-opacity="0.4"/>
+    
+    <!-- Left eye -->
+    <circle cx="-12" cy="-25" r="8" fill="url(#eyeGlow)"/>
+    <circle cx="-12" cy="-25" r="5" fill="#ff0000"/>
+    <circle cx="-12" cy="-25" r="2" fill="#ffffff"/>
+    
+    <!-- Right eye -->
+    <circle cx="12" cy="-25" r="8" fill="url(#eyeGlow)"/>
+    <circle cx="12" cy="-25" r="5" fill="#ff0000"/>
+    <circle cx="12" cy="-25" r="2" fill="#ffffff"/>
+    
+    <!-- Beak -->
+    <path d="M -3 -15 L 3 -15 L 0 -10 Z" fill="#8a8a8a"/>
+    
+    <!-- Circuit details on body -->
+    <path d="M -20 0 L 20 0" stroke="#3a3a3a" stroke-width="1"/>
+    <path d="M -15 -10 L -15 20" stroke="#3a3a3a" stroke-width="1"/>
+    <path d="M 15 -10 L 15 20" stroke="#3a3a3a" stroke-width="1"/>
+    <circle cx="-15" cy="0" r="2" fill="#4a4a4a"/>
+    <circle cx="15" cy="0" r="2" fill="#4a4a4a"/>
+  </g>
+</svg>
+
