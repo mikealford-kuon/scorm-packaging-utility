@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SCORM 1.2 MP4/VTT Packager</title>
+    <script src="vendor/js/jszip.min.js"></script>
+    <script src="vendor/js/FileSaver.min.js"></script>
+    <link rel="stylesheet" href="vendor/css/video-js.css" />
+    <script src="vendor/js/video.min.js"></script>
+    <style>
+      :root {
+        --bg: #0f1021;
+        --panel: #1a1b31;
+        --border: #2f3152;
+        --text: #eef0ff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: radial-gradient(circle at top, #21234a, #080913 72%);
+        color: var(--text);
+      }
+
+      .page {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 2.5rem 1.25rem 2rem;
+      }
+
+      h1 {
+        margin-top: 0;
+        font-size: 1.8rem;
+      }
+
+      p {
+        color: #cfd3ff;
+      }
+
+      .panel {
+        background: rgba(15, 16, 33, 0.8);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1rem;
+      }
+
+      .row {
+        display: grid;
+        gap: 0.6rem;
+        margin-bottom: 1rem;
+      }
+
+      label {
+        font-weight: 600;
+      }
+
+      input[type='text'],
+      input[type='file'] {
+        width: 100%;
+        padding: 0.65rem;
+        border-radius: 8px;
+        border: 1px solid #464a80;
+        background: #10122b;
+        color: #eef0ff;
+      }
+
+      .actions {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+      }
+
+      button {
+        border: 1px solid #595ea6;
+        background: #4a54d5;
+        color: #fff;
+        border-radius: 8px;
+        padding: 0.65rem 1rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      .status {
+        min-height: 1.4rem;
+        color: #cbcbff;
+        margin-bottom: 0.5rem;
+      }
+
+      .status.error {
+        color: #ffcbcb;
+      }
+
+      .status.ok {
+        color: #a9ffb8;
+      }
+
+      .preview-panel {
+        margin-top: 1rem;
+        border-top: 1px dashed var(--border);
+        padding-top: 1rem;
+      }
+
+      .player-shell {
+        margin-top: 0.75rem;
+        border: 1px solid #3d4276;
+        border-radius: 12px;
+        overflow: hidden;
+        background: #000;
+      }
+
+      .player-shell:fullscreen {
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        border: 0;
+        border-radius: 0;
+      }
+
+      .player-shell:fullscreen .video-stage {
+        flex: 1 1 auto;
+        aspect-ratio: auto;
+        min-height: 0;
+      }
+
+      .player-shell:fullscreen .caption-tray {
+        flex: 0 0 auto;
+      }
+
+      .video-stage {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        background: #000;
+      }
+
+      .video-stage .video-js,
+      .video-stage video {
+        width: 100% !important;
+        height: 100% !important;
+      }
+
+      .video-stage video {
+        object-fit: contain;
+        background: #000;
+      }
+
+      .video-js .vjs-text-track-display,
+      .video-js .vjs-text-track-cue,
+      video::cue {
+        display: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+      }
+
+      .caption-tray {
+        min-height: 74px;
+        padding: 0.7rem 0.8rem;
+        color: #fff;
+        background: #000;
+        border-top: 1px solid #222;
+        font-size: 1rem;
+        line-height: 1.35;
+        text-align: center;
+        white-space: pre-line;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      .small {
+        font-size: 0.85rem;
+        color: #a5a9ff;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <h1>SCORM 1.2 MP4/VTT Packager</h1>
+      <p>
+        Select one MP4 and one VTT file, preview locally with Video.js, then build a SCORM 1.2-compatible
+        ZIP package with a black subtitle tray below the player.
+      </p>
+
+      <section class="panel">
+        <div class="row">
+          <label for="packageTitle">SCORM Title</label>
+          <input id="packageTitle" type="text" value="Custom Video SCORM" />
+        </div>
+
+        <div class="row">
+          <label for="videoFile">Video file (.mp4)</label>
+          <input id="videoFile" type="file" accept="video/mp4" />
+        </div>
+
+        <div class="row">
+          <label for="vttFile">Captions file (.vtt)</label>
+          <input id="vttFile" type="file" accept=".vtt,.srt,text/vtt" />
+        </div>
+
+        <div class="actions">
+          <button id="previewBtn" disabled>Preview video</button>
+          <button id="buildBtn" disabled>Build SCORM 1.2 ZIP</button>
+          <button id="clearBtn" type="button">Clear</button>
+        </div>
+
+        <div id="status" class="status" aria-live="polite"></div>
+      </section>
+
+      <section id="previewSection" class="panel preview-panel hidden">
+        <h2>Preview</h2>
+        <p class="small">Use CC toggle in control bar to switch captions.</p>
+        <div class="player-shell">
+          <div class="video-stage">
+            <video
+              id="previewPlayer"
+              class="video-js vjs-default-skin"
+              playsinline
+              controls
+            ></video>
+          </div>
+          <div id="previewCaptionTray" class="caption-tray" aria-live="polite">&nbsp;</div>
+        </div>
+        <div class="actions" style="margin-top: .75rem">
+          <button id="closePreviewBtn" type="button">Close preview</button>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const videoInput = document.getElementById('videoFile');
+      const vttInput = document.getElementById('vttFile');
+      const previewBtn = document.getElementById('previewBtn');
+      const buildBtn = document.getElementById('buildBtn');
+      const clearBtn = document.getElementById('clearBtn');
+      const statusEl = document.getElementById('status');
+      const previewSection = document.getElementById('previewSection');
+      const previewVideo = document.getElementById('previewPlayer');
+      const previewTray = document.getElementById('previewCaptionTray');
+      const packageTitleInput = document.getElementById('packageTitle');
+      const closePreviewBtn = document.getElementById('closePreviewBtn');
+
+      const state = {
+        videoFile: null,
+        vttFile: null,
+        previewPlayer: null,
+        objectUrls: new Set(),
+      };
+
+      const VIDEO_JS_CSS_URL = 'vendor/css/video-js.css';
+      const VIDEO_JS_JS_URL = 'vendor/js/video.min.js';
+
+      const toStatus = (msg, type = 'info') => {
+        statusEl.textContent = msg;
+        statusEl.className = `status ${type}`;
+      };
+
+      const safeText = (value) =>
+        String(value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+
+      const safePath = (value) =>
+        String(value).replace(/[^a-zA-Z0-9._-]/g, '_').replace(/_+/g, '_').slice(0, 128) || 'file';
+
+      const scrubbedZipName = (value) => safePath(value.replace(/\.[^/.]+$/, ''));
+
+      const stripHtml = (html) => html.replace(/<[^>]*>/g, '');
+
+      const parseTimestamp = (value) => {
+        const parts = value.trim().replace(',', '.').split(':');
+        if (parts.length < 2) return 0;
+        const seconds = Number(parts.pop()) || 0;
+        const minutes = Number(parts.pop()) || 0;
+        const hours = Number(parts.pop()) || 0;
+        return hours * 3600 + minutes * 60 + seconds;
+      };
+
+      const parseVtt = (text) => {
+        const cues = [];
+        const normalized = text.replace(/\r/g, '').replace(/^\uFEFF/, '');
+        const blocks = normalized.split(/\n\n+/);
+
+        for (const block of blocks) {
+          const lines = block.split('\n').map((line) => line.trim()).filter(Boolean);
+          if (!lines.length) continue;
+          if (lines[0].toUpperCase().startsWith('WEBVTT')) lines.shift();
+          if (!lines.length) continue;
+
+          const timingIndex = lines.findIndex((line) => line.includes('-->'));
+          if (timingIndex === -1) continue;
+
+          const timing = lines[timingIndex].split('-->');
+          if (timing.length < 2) continue;
+
+          const start = parseTimestamp(timing[0]);
+          const end = parseTimestamp(timing[1].split(/\s+/)[0]);
+          const cueText = lines.slice(timingIndex + 1).join('\n');
+          if (cueText) cues.push({ start, end, text: stripHtml(cueText) });
+        }
+
+        return cues;
+      };
+
+      window.__scormPackagerTest = {
+        parseVtt,
+        captionTextAt: (cues, time) => cues
+          .filter((cue) => time >= cue.start && time <= cue.end)
+          .map((cue) => cue.text)
+          .join('\n'),
+        setTrayTextAt: (vtt, time) => {
+          const text = window.__scormPackagerTest.captionTextAt(parseVtt(vtt), time);
+          previewTray.textContent = text || '\u00A0';
+          return previewTray.textContent;
+        },
+      };
+
+      const fileSelected = () => {
+        const ready = Boolean(state.videoFile && state.vttFile);
+        previewBtn.disabled = !ready;
+        buildBtn.disabled = !ready;
+      };
+
+      const cleanupPreview = () => {
+        if (state.previewPlayer) {
+          state.previewPlayer.dispose();
+          state.previewPlayer = null;
+        }
+        state.objectUrls.forEach((u) => URL.revokeObjectURL(u));
+        state.objectUrls.clear();
+      };
+
+      const wireShellFullscreen = (player) => {
+        player.ready(() => {
+          const shell = player.el() ? player.el().closest('.player-shell') : null;
+          const button = player.el() ? player.el().querySelector('.vjs-fullscreen-control') : null;
+          if (!shell || !button || !shell.requestFullscreen) return;
+
+          const toggleFullscreen = (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (document.fullscreenElement === shell) {
+              document.exitFullscreen();
+            } else {
+              shell.requestFullscreen();
+            }
+          };
+
+          button.addEventListener('click', toggleFullscreen, true);
+          button.addEventListener('touchend', toggleFullscreen, true);
+        });
+      };
+
+      const wireCaptionTray = (player, trayEl, cues) => {
+        let captionsAllowed = true;
+
+        const syncCaptionMode = () => {
+          const tracks = player.textTracks ? player.textTracks() : [];
+          let sawCaptionTrack = false;
+
+          for (let i = 0; i < tracks.length; i++) {
+            const track = tracks[i];
+            if (track.kind !== 'subtitles' && track.kind !== 'captions') continue;
+            sawCaptionTrack = true;
+            if (track.mode !== 'disabled') {
+              captionsAllowed = true;
+              return;
+            }
+          }
+
+          if (sawCaptionTrack) captionsAllowed = false;
+        };
+
+        const captionsEnabled = () => {
+          const tracks = player.textTracks ? player.textTracks() : [];
+
+          for (let i = 0; i < tracks.length; i++) {
+            const track = tracks[i];
+            if (track.kind !== 'subtitles' && track.kind !== 'captions') continue;
+            if (track.mode !== 'disabled') return true;
+          }
+
+          return captionsAllowed;
+        };
+
+        const captionTextAt = (time) => cues
+          .filter((cue) => time >= cue.start && time <= cue.end)
+          .map((cue) => cue.text)
+          .join('\n');
+
+        const captionTextFromNativeTracks = (trackList) => {
+          if (!trackList) return '';
+
+          for (let i = 0; i < trackList.length; i++) {
+            const track = trackList[i];
+            if (track.kind !== 'subtitles' && track.kind !== 'captions') continue;
+            if (track.mode === 'disabled') continue;
+            if (!track.activeCues || !track.activeCues.length) continue;
+
+            const lines = [];
+            for (let j = 0; j < track.activeCues.length; j++) {
+              const cue = track.activeCues[j];
+              if (cue.text) lines.push(stripHtml(cue.text));
+            }
+            if (lines.length) return lines.join('\n');
+          }
+
+          return '';
+        };
+
+        const renderCaptions = () => {
+          const media = player.el() ? player.el().querySelector('video') : null;
+          if (!captionsEnabled()) {
+            trayEl.textContent = '\u00A0';
+            return;
+          }
+
+          const time = player.currentTime ? player.currentTime() : (media && media.currentTime) || 0;
+          const text = captionTextAt(time)
+            || captionTextFromNativeTracks(player.textTracks && player.textTracks())
+            || captionTextFromNativeTracks(media && media.textTracks);
+          trayEl.textContent = text || '\u00A0';
+        };
+
+        player.ready(() => {
+          const media = player.el() ? player.el().querySelector('video') : null;
+          if (media) {
+            media.addEventListener('timeupdate', renderCaptions);
+            media.addEventListener('seeked', renderCaptions);
+            media.addEventListener('ratechange', renderCaptions);
+          }
+
+          const tracks = player.textTracks ? player.textTracks() : [];
+          for (let i = 0; i < tracks.length; i++) {
+            const track = tracks[i];
+            if (track.kind === 'captions' || track.kind === 'subtitles') {
+              track.mode = 'showing';
+            }
+            track.addEventListener('cuechange', renderCaptions);
+          }
+          if (tracks.addEventListener) {
+            tracks.addEventListener('change', () => {
+              syncCaptionMode();
+              renderCaptions();
+            });
+          }
+          if (media && media.textTracks) {
+            for (let i = 0; i < media.textTracks.length; i++) {
+              const track = media.textTracks[i];
+              track.addEventListener('cuechange', renderCaptions);
+            }
+            if (media.textTracks.addEventListener) {
+              media.textTracks.addEventListener('change', () => {
+                syncCaptionMode();
+                renderCaptions();
+              });
+            }
+          }
+          renderCaptions();
+        });
+      };
+
+      const buildScormHtml = (title, videoName, vttName, cssHref, jsSrc) => {
+        const htmlTitle = safeText(title);
+        const escapedVideo = safeText(videoName);
+        const escapedVtt = safeText(vttName);
+
+        return `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${htmlTitle}</title>
+    <link rel="stylesheet" href="${cssHref}" />
+    <script src="${jsSrc}"><\/script>
+    <style>
+      body { margin: 0; padding: 1.25rem; font-family: Arial, Helvetica, sans-serif; background: #111; color: #fff; }
+      .wrapper { max-width: 960px; margin: 0 auto; }
+      .player-shell { border: 1px solid #333; background: #000; }
+      .player-shell:fullscreen {
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        border: 0;
+      }
+      .player-shell:fullscreen .video-stage {
+        flex: 1 1 auto;
+        aspect-ratio: auto;
+        min-height: 0;
+      }
+      .player-shell:fullscreen .caption-tray {
+        flex: 0 0 auto;
+      }
+      .video-stage {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        background: #000;
+      }
+      .video-stage .video-js,
+      .video-stage video {
+        width: 100% !important;
+        height: 100% !important;
+      }
+      .video-stage video {
+        object-fit: contain;
+        background: #000;
+      }
+      .video-js .vjs-text-track-display,
+      .video-js .vjs-text-track-cue,
+      video::cue {
+        display: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+      }
+      .caption-tray {
+        min-height: 84px;
+        background: #000;
+        color: #fff;
+        border-top: 1px solid #222;
+        padding: 0.8rem;
+        font-size: 1rem;
+        line-height: 1.35;
+        text-align: center;
+        white-space: pre-line;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrapper">
+      <div class="player-shell">
+        <div class="video-stage">
+          <video
+            id="scormVideo"
+            class="video-js vjs-default-skin"
+            controls
+            playsinline
+            preload="metadata"
+          >
+            <source src="media/${escapedVideo}" type="video/mp4" />
+            <track
+              src="media/${escapedVtt}"
+              kind="captions"
+              srclang="en"
+              label="English"
+              default
+            />
+          </video>
+        </div>
+      <div id="captionTray" class="caption-tray" aria-live="polite">&nbsp;</div>
+      </div>
+    </main>
+
+    <script>
+      var scormApi = null;
+      var scormInitialized = false;
+
+      var findScormApi = function (win) {
+        var attempts = 0;
+        while (win && attempts < 500) {
+          if (win.API) return win.API;
+          attempts += 1;
+          if (win.parent && win.parent !== win) {
+            win = win.parent;
+          } else {
+            break;
+          }
+        }
+        return window.opener && window.opener.API ? window.opener.API : null;
+      };
+
+      var scormCall = function (name, arg1, arg2) {
+        if (!scormApi || !scormApi[name]) return '';
+        try {
+          if (typeof arg2 !== 'undefined') return scormApi[name](arg1, arg2);
+          if (typeof arg1 !== 'undefined') return scormApi[name](arg1);
+          return scormApi[name]();
+        } catch (error) {
+          return '';
+        }
+      };
+
+      var initializeScorm = function () {
+        scormApi = findScormApi(window);
+        if (!scormApi) return;
+        scormInitialized = scormCall('LMSInitialize', '') === 'true';
+        if (scormInitialized) {
+          var status = scormCall('LMSGetValue', 'cmi.core.lesson_status');
+          if (!status || status === 'not attempted') {
+            scormCall('LMSSetValue', 'cmi.core.lesson_status', 'incomplete');
+            scormCall('LMSCommit', '');
+          }
+        }
+      };
+
+      var completeScorm = function () {
+        if (!scormInitialized) return;
+        scormCall('LMSSetValue', 'cmi.core.lesson_status', 'completed');
+        scormCall('LMSCommit', '');
+      };
+
+      var finishScorm = function () {
+        if (!scormInitialized) return;
+        scormCall('LMSCommit', '');
+        scormCall('LMSFinish', '');
+        scormInitialized = false;
+      };
+
+      initializeScorm();
+      window.addEventListener('beforeunload', finishScorm);
+
+      var player = videojs('scormVideo', {
+        autoplay: false,
+        controls: true,
+        preload: 'metadata',
+      });
+      var tray = document.getElementById('captionTray');
+
+      var wireShellFullscreen = function () {
+        player.ready(function () {
+          var shell = player.el() ? player.el().closest('.player-shell') : null;
+          var button = player.el() ? player.el().querySelector('.vjs-fullscreen-control') : null;
+          if (!shell || !button || !shell.requestFullscreen) return;
+
+          var toggleFullscreen = function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (document.fullscreenElement === shell) {
+              document.exitFullscreen();
+            } else {
+              shell.requestFullscreen();
+            }
+          };
+
+          button.addEventListener('click', toggleFullscreen, true);
+          button.addEventListener('touchend', toggleFullscreen, true);
+        });
+      };
+      wireShellFullscreen();
+
+      var strip = function (html) {
+        return html.replace(/<[^>]*>/g, '');
+      };
+
+      var parseTimestamp = function (value) {
+        var parts = value.trim().replace(',', '.').split(':');
+        if (parts.length < 2) return 0;
+        var seconds = Number(parts.pop()) || 0;
+        var minutes = Number(parts.pop()) || 0;
+        var hours = Number(parts.pop()) || 0;
+        return hours * 3600 + minutes * 60 + seconds;
+      };
+
+      var parseVtt = function (text) {
+        var cues = [];
+        var normalized = text.replace(/\\r/g, '').replace(/^\\uFEFF/, '');
+        var blocks = normalized.split(/\\n\\n+/);
+
+        for (var i = 0; i < blocks.length; i++) {
+          var lines = blocks[i].split('\\n').map(function (line) {
+            return line.trim();
+          }).filter(Boolean);
+          if (!lines.length) continue;
+          if (lines[0].toUpperCase().indexOf('WEBVTT') === 0) lines.shift();
+          if (!lines.length) continue;
+
+          var timingIndex = -1;
+          for (var j = 0; j < lines.length; j++) {
+            if (lines[j].indexOf('-->') !== -1) {
+              timingIndex = j;
+              break;
+            }
+          }
+          if (timingIndex === -1) continue;
+
+          var timing = lines[timingIndex].split('-->');
+          if (timing.length < 2) continue;
+
+          var start = parseTimestamp(timing[0]);
+          var end = parseTimestamp(timing[1].split(/\\s+/)[0]);
+          var cueText = lines.slice(timingIndex + 1).join('\\n');
+          if (cueText) cues.push({ start: start, end: end, text: strip(cueText) });
+        }
+
+        return cues;
+      };
+
+      var cues = [];
+      var captionsAllowed = true;
+
+      var syncCaptionMode = function () {
+        var tracks = player.textTracks ? player.textTracks() : [];
+        var sawCaptionTrack = false;
+
+        for (var i = 0; i < tracks.length; i++) {
+          if (tracks[i].kind !== 'subtitles' && tracks[i].kind !== 'captions') continue;
+          sawCaptionTrack = true;
+          if (tracks[i].mode !== 'disabled') {
+            captionsAllowed = true;
+            return;
+          }
+        }
+
+        if (sawCaptionTrack) captionsAllowed = false;
+      };
+
+      var captionsEnabled = function () {
+        var tracks = player.textTracks ? player.textTracks() : [];
+
+        for (var i = 0; i < tracks.length; i++) {
+          if (tracks[i].kind !== 'subtitles' && tracks[i].kind !== 'captions') continue;
+          if (tracks[i].mode !== 'disabled') return true;
+        }
+
+        return captionsAllowed;
+      };
+
+      var captionTextAt = function (time) {
+        var lines = [];
+        for (var i = 0; i < cues.length; i++) {
+          if (time >= cues[i].start && time <= cues[i].end) lines.push(cues[i].text);
+        }
+        return lines.join('\\n');
+      };
+
+      var captionTextFromNativeTracks = function (trackList) {
+        if (!trackList) return '';
+
+        for (var i = 0; i < trackList.length; i++) {
+          var track = trackList[i];
+          if (track.kind !== 'subtitles' && track.kind !== 'captions') continue;
+          if (track.mode === 'disabled') continue;
+          if (!track.activeCues || !track.activeCues.length) continue;
+
+          var lines = [];
+          for (var j = 0; j < track.activeCues.length; j++) {
+            if (track.activeCues[j] && track.activeCues[j].text) {
+              lines.push(strip(track.activeCues[j].text));
+            }
+          }
+          if (lines.length) return lines.join('\\n');
+        }
+
+        return '';
+      };
+
+      var renderCaptions = function () {
+        var media = player.el() ? player.el().querySelector('video') : null;
+        if (!captionsEnabled()) {
+          tray.textContent = '\\u00A0';
+          return;
+        }
+
+        var time = player.currentTime ? player.currentTime() : media && media.currentTime || 0;
+        var text = captionTextAt(time)
+          || captionTextFromNativeTracks(player.textTracks && player.textTracks())
+          || captionTextFromNativeTracks(media && media.textTracks);
+        tray.textContent = text || '\\u00A0';
+      };
+
+      player.ready(function () {
+        var tracks = player.textTracks ? player.textTracks() : [];
+        var media = player.el() ? player.el().querySelector('video') : null;
+        for (var i = 0; i < tracks.length; i++) {
+          if (tracks[i].kind === 'captions' || tracks[i].kind === 'subtitles') {
+            tracks[i].mode = 'showing';
+          }
+          tracks[i].addEventListener('cuechange', renderCaptions);
+        }
+        if (tracks.addEventListener) {
+          tracks.addEventListener('change', function () {
+            syncCaptionMode();
+            renderCaptions();
+          });
+        }
+        if (media) {
+          media.addEventListener('timeupdate', renderCaptions);
+          media.addEventListener('seeked', renderCaptions);
+          if (media.textTracks) {
+            for (var j = 0; j < media.textTracks.length; j++) {
+              media.textTracks[j].addEventListener('cuechange', renderCaptions);
+            }
+            if (media.textTracks.addEventListener) {
+              media.textTracks.addEventListener('change', function () {
+                syncCaptionMode();
+                renderCaptions();
+              });
+            }
+          }
+        }
+        renderCaptions();
+      });
+
+      player.on('ended', completeScorm);
+
+      fetch('media/${escapedVtt}')
+        .then(function (response) { return response.text(); })
+        .then(function (text) {
+          cues = parseVtt(text);
+          renderCaptions();
+        })
+        .catch(function () {
+          renderCaptions();
+        });
+    <\/script>
+  </body>
+</html>`;
+      };
+
+      const buildManifestXml = ({ title, videoFileName, vttFileName, localAssets }) => {
+        const manifestId = `MANIFEST_${Date.now()}`;
+        const titleEscaped = safeText(title);
+        const files = [
+          '<file href="index.html" />',
+          `<file href="media/${safeText(videoFileName)}" />`,
+          `<file href="media/${safeText(vttFileName)}" />`,
+        ];
+        if (localAssets) {
+          files.push('<file href="css/video-js.css" />');
+          files.push('<file href="js/video.min.js" />');
+        }
+        const fileEntries = files.join('\n      ');
+        return `<?xml version="1.0" encoding="UTF-8"?>
+<manifest identifier="${manifestId}" version="1.0"
+  xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2"
+  xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_rootv1p2"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.imsproject.org/xsd/imscp_rootv1p1p2 http://www.imsglobal.org/xsd/imscp_rootv1p1p2.xsd
+  http://www.adlnet.org/xsd/adlcp_rootv1p2 http://www.adlnet.org/xsd/adlcp_rootv1p2.xsd">
+  <metadata>
+    <schema>ADL SCORM</schema>
+    <schemaversion>1.2</schemaversion>
+  </metadata>
+  <organizations default="ORG1">
+    <organization identifier="ORG1">
+      <title>${titleEscaped}</title>
+      <item identifier="ITEM1" identifierref="RES1">
+        <title>${titleEscaped}</title>
+      </item>
+    </organization>
+  </organizations>
+  <resources>
+    <resource identifier="RES1" type="webcontent" adlcp:scormtype="sco" href="index.html">
+      ${fileEntries}
+    </resource>
+  </resources>
+</manifest>`;
+      };
+
+      const fetchText = async (url) => {
+        try {
+          const response = await fetch(url, { mode: 'cors' });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return await response.text();
+        } catch {
+          return null;
+        }
+      };
+
+      const buildPackage = async () => {
+        if (!state.videoFile || !state.vttFile) {
+          toStatus('Please select both MP4 and VTT first.', 'error');
+          return;
+        }
+
+        if (!window.JSZip || !window.saveAs) {
+          toStatus('Missing JSZip or FileSaver libraries. Check network access.', 'error');
+          return;
+        }
+
+        toStatus('Preparing SCORM assets...');
+        const zip = new JSZip();
+        const packageTitle = packageTitleInput.value.trim() || 'SCORM Video Package';
+        const videoName = state.videoFile.name;
+        const vttName = state.vttFile.name;
+        const zipBase = scrubbedZipName(packageTitle);
+
+        const mediaFolder = zip.folder('media');
+        mediaFolder.file(videoName, state.videoFile);
+        mediaFolder.file(vttName, state.vttFile);
+
+        const cssText = await fetchText(VIDEO_JS_CSS_URL);
+        const jsText = await fetchText(VIDEO_JS_JS_URL);
+        const localAssets = Boolean(cssText && jsText);
+
+        if (!localAssets) {
+          toStatus('Could not read local Video.js assets. Run from the localhost test URL and try again.', 'error');
+          return;
+        }
+
+        let cssHref = 'css/video-js.css';
+        let jsSrc = 'js/video.min.js';
+
+        const cssFolder = zip.folder('css');
+        const jsFolder = zip.folder('js');
+        cssFolder.file('video-js.css', cssText);
+        jsFolder.file('video.min.js', jsText);
+
+        const manifest = buildManifestXml({
+          title: packageTitle,
+          videoFileName: videoName,
+          vttFileName: vttName,
+          localAssets,
+        });
+        zip.file('imsmanifest.xml', manifest);
+
+        zip.file(
+          'index.html',
+          buildScormHtml(packageTitle, videoName, vttName, cssHref, jsSrc),
+        );
+
+        const blob = await zip.generateAsync({ type: 'blob' }, (metadata) => {
+          if (metadata.percent && Number.isFinite(metadata.percent)) {
+            toStatus(`Packaging: ${metadata.percent.toFixed(0)}%`);
+          }
+        });
+        const fileName = `${zipBase}_scorm12_${Date.now()}.zip`;
+        saveAs(blob, fileName);
+        toStatus(`Done. Downloading: ${fileName}`, 'ok');
+      };
+
+      const openPreviewFromSources = async ({ videoUrl, vttUrl, vttText, revokeUrls = [] }) => {
+        previewSection.classList.remove('hidden');
+        cleanupPreview();
+        revokeUrls.forEach((url) => state.objectUrls.add(url));
+
+        state.previewPlayer = videojs(previewVideo, {
+          autoplay: false,
+          controls: true,
+          preload: 'metadata',
+          responsive: true,
+          fill: true,
+        });
+
+        state.previewPlayer.src({ src: videoUrl, type: 'video/mp4' });
+        const remoteTrack = state.previewPlayer.addRemoteTextTrack(
+          {
+            kind: 'captions',
+            src: vttUrl,
+            srclang: 'en',
+            label: 'English',
+            default: true,
+          },
+          false,
+        );
+        if (remoteTrack && remoteTrack.track) {
+          remoteTrack.track.mode = 'showing';
+        }
+
+        const cues = parseVtt(vttText);
+        wireShellFullscreen(state.previewPlayer);
+        wireCaptionTray(state.previewPlayer, previewTray, cues);
+        toStatus('Preview ready. Use CC button in player controls to toggle captions.');
+      };
+
+      const openPreview = async () => {
+        if (!state.videoFile || !state.vttFile) {
+          toStatus('Please select both MP4 and VTT first.', 'error');
+          return;
+        }
+
+        const videoUrl = URL.createObjectURL(state.videoFile);
+        const vttUrl = URL.createObjectURL(state.vttFile);
+        await openPreviewFromSources({
+          videoUrl,
+          vttUrl,
+          vttText: await state.vttFile.text(),
+          revokeUrls: [videoUrl, vttUrl],
+        });
+      };
+
+      const clearSelections = () => {
+        videoInput.value = '';
+        vttInput.value = '';
+        state.videoFile = null;
+        state.vttFile = null;
+        fileSelected();
+        cleanupPreview();
+        previewSection.classList.add('hidden');
+        toStatus('');
+      };
+
+      videoInput.addEventListener('change', (event) => {
+        state.videoFile = event.target.files[0] || null;
+        if (state.videoFile && !state.videoFile.type.includes('mp4')) {
+          toStatus('Selected video is not mp4. Re-select a .mp4 file.', 'error');
+          state.videoFile = null;
+          videoInput.value = '';
+        }
+        fileSelected();
+      });
+
+      vttInput.addEventListener('change', (event) => {
+        state.vttFile = event.target.files[0] || null;
+        if (state.vttFile && !/\.vtt$/i.test(state.vttFile.name)) {
+          toStatus('Selected subtitle file is not .vtt. Re-select a .vtt file.', 'error');
+          state.vttFile = null;
+          vttInput.value = '';
+        }
+        fileSelected();
+      });
+
+      previewBtn.addEventListener('click', openPreview);
+      buildBtn.addEventListener('click', buildPackage);
+      clearBtn.addEventListener('click', clearSelections);
+      closePreviewBtn.addEventListener('click', () => {
+        cleanupPreview();
+        previewSection.classList.add('hidden');
+        toStatus('Preview closed.');
+      });
+
+      if (new URLSearchParams(window.location.search).has('e2eCaptionTest')) {
+        fetch('test-fixtures/caption-test.vtt')
+          .then((response) => response.text())
+          .then((vttText) => openPreviewFromSources({
+            videoUrl: 'test-fixtures/caption-test.mp4',
+            vttUrl: 'test-fixtures/caption-test.vtt',
+            vttText,
+          }))
+          .then(() => {
+            if (state.previewPlayer) state.previewPlayer.currentTime(0.5);
+          })
+          .catch((error) => {
+            toStatus(`E2E caption test failed: ${error.message}`, 'error');
+          });
+      }
+    </script>
+  </body>
+</html>
